@@ -1,7 +1,7 @@
 import { mkdir, readdir } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import Database from "better-sqlite3"
+import { Database } from "bun:sqlite"
 import type { Plugin } from "@opencode-ai/plugin"
 
 const ARCHIVE_DIR = process.env.OPENCODE_ARCHIVER_DIRECTORY || join(homedir(), ".opencode-archives")
@@ -33,7 +33,7 @@ async function listArchivedSessionIds(): Promise<string[]> {
   }
 }
 
-function listSessionIdsToArchive(): string[] {
+async function listSessionIdsToArchive(): string[] {
   const DB_PATH = join(homedir(), ".local", "share", "opencode", "opencode.db")
   const sessionIds: string[] = []
 
@@ -52,7 +52,8 @@ function listSessionIdsToArchive(): string[] {
     }
 
     db.close()
-  } catch {
+  } catch (error) {
+    console.error("[ARCHIVER] Error in listSessionIdsToArchive:", error)
     return []
   }
 
@@ -60,9 +61,25 @@ function listSessionIdsToArchive(): string[] {
 }
 
 async function checkMissingArchives(client: { app: { log: (args: { body: { service: string; level: string; message: string } }) => Promise<void> } }): Promise<void> {
-  const toArchive = listSessionIdsToArchive()
+  const toArchive = await listSessionIdsToArchive()
   const archived = await listArchivedSessionIds()
   const archivedSet = new Set(archived)
+
+  await client.app.log({
+    body: {
+      service: "opencode-archiver",
+      level: "info",
+      message: `[ARCHIVER] To archive: ${toArchive}`,
+    },
+  })
+
+  await client.app.log({
+    body: {
+      service: "opencode-archiver",
+      level: "info",
+      message: `[ARCHIVER] Archived: ${archived}`,
+    },
+  })
 
   for (const sessionId of toArchive) {
     if (!archivedSet.has(sessionId)) {
