@@ -4,10 +4,6 @@
 This project is an **opencode plugin** that automatically archives conversations to markdown files when specific conditions are met.
 
 ## Key Files
-- `src/index.ts` - Main plugin entry point
-- `src/archiver.ts` - Core archiving logic
-- `src/formatter.ts` - Markdown formatting utilities
-- `src/config.ts` - Configuration handling
 - `DESIGN.md` - Plugin design documentation
 - `TASKS.md` - Implementation task list
 
@@ -19,25 +15,7 @@ This project is an **opencode plugin** that automatically archives conversations
 - All user-facing strings in English
 
 ## Development
-- Build: `bun run build` (if applicable)
 - Test: Manual testing via opencode TUI with plugin loaded
-
-## Configuration
-Users configure the plugin in their `opencode.json`:
-```json
-{
-  "plugin": ["opencode-archiver"],
-  "archiver": {
-    "agents": ["general", "explore"],
-    "outputDir": "~/.opencode-archives",
-    "includeTools": true,
-    "includeThinking": false
-  }
-}
-```
-
-## Lessons Learned
-- (To be populated as issues arise)
 
 ## See Also
 - [DESIGN.md](DESIGN.md) for detailed plugin architecture
