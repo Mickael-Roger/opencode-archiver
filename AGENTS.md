@@ -18,6 +18,21 @@ This project is an **opencode plugin** that automatically archives conversations
 ## Development
 - Test: Manual testing via opencode TUI with plugin loaded
 
+## External Dependencies
+Local plugins using external npm packages (like `better-sqlite3`) must declare them in:
+- `~/.config/opencode/package.json` - Global config directory (NOT the plugins directory)
+
+OpenCode runs `bun install` at startup to install these dependencies automatically.
+
+Example:
+```json
+{
+  "dependencies": {
+    "better-sqlite3": "^11.8.1"
+  }
+}
+```
+
 ## See Also
 - [DESIGN.md](DESIGN.md) for detailed plugin architecture
 - [TASKS.md](TASKS.md) for implementation progress

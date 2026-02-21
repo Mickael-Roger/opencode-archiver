@@ -59,6 +59,24 @@ function listSessionIdsToArchive(): string[] {
   return sessionIds
 }
 
+async function checkMissingArchives(client: { app: { log: (args: { body: { service: string; level: string; message: string } }) => Promise<void> } }): Promise<void> {
+  const toArchive = listSessionIdsToArchive()
+  const archived = await listArchivedSessionIds()
+  const archivedSet = new Set(archived)
+
+  for (const sessionId of toArchive) {
+    if (!archivedSet.has(sessionId)) {
+      await client.app.log({
+        body: {
+          service: "opencode-archiver",
+          level: "info",
+          message: `[ARCHIVER] Missing archive for session: ${sessionId}`,
+        },
+      })
+    }
+  }
+}
+
 export const OpencodeArchiver: Plugin = async ({ client }) => {
   const archiveDir = await ensureArchiveDir()
 
@@ -73,14 +91,7 @@ export const OpencodeArchiver: Plugin = async ({ client }) => {
   return {
     event: async ({ event }) => {
       if (event.type === "server.instance.disposed" || event.type === "session.created") {
-        await client.app.log({
-          body: {
-            service: "opencode-archiver",
-            level: "info",
-            message: `[ARCHIVER] Event captured: ${event.type}`,
-            extra: { event },
-          },
-        })
+        await checkMissingArchives(client)
       }
     },
   }
