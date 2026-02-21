@@ -13,6 +13,7 @@ This project is an **opencode plugin** that automatically archives conversations
 - Import types from `@opencode-ai/plugin`
 - Use `client.app.log()` for logging, not `console.log`
 - All user-facing strings in English
+- **STRICTLY follow user orders - only do exactly what is requested, do not add extra files or functionality beyond the explicit instruction**
 
 ## Development
 - Test: Manual testing via opencode TUI with plugin loaded
