@@ -26,7 +26,7 @@ This project is an **opencode plugin** that automatically archives conversations
 Users configure the plugin in their `opencode.json`:
 ```json
 {
-  "plugin": ["@mickael-roger/opencode-archiver"],
+  "plugin": ["opencode-archiver"],
   "archiver": {
     "agents": ["general", "explore"],
     "outputDir": "~/.opencode-archives",

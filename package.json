@@ -1,5 +1,5 @@
 {
-  "name": "@mickael-roger/opencode-archiver",
+  "name": "opencode-archiver",
   "version": "0.1.0",
   "description": "OpenCode plugin that automatically archives conversations to markdown files",
   "type": "module",
