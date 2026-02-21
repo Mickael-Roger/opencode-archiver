@@ -1,4 +1,4 @@
-import { mkdir, readdir } from "node:fs/promises"
+import { mkdir, readdir, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { Database } from "bun:sqlite"
@@ -33,7 +33,7 @@ async function listArchivedSessionIds(): Promise<string[]> {
   }
 }
 
-async function listSessionIdsToArchive(): string[] {
+async function listSessionIdsToArchive(): Promise<string[]> {
   const DB_PATH = join(homedir(), ".local", "share", "opencode", "opencode.db")
   const sessionIds: string[] = []
 
@@ -60,7 +60,7 @@ async function listSessionIdsToArchive(): string[] {
   return sessionIds
 }
 
-async function checkMissingArchives(client: { app: { log: (args: { body: { service: string; level: string; message: string } }) => Promise<void> } }): Promise<void> {
+async function checkMissingArchives(client: { app: { log: (args: { body: { service: string; level: "info" | "debug" | "error" | "warn"; message: string } }) => unknown } }): Promise<void> {
   const toArchive = await listSessionIdsToArchive()
   const archived = await listArchivedSessionIds()
   const archivedSet = new Set(archived)
@@ -83,14 +83,94 @@ async function checkMissingArchives(client: { app: { log: (args: { body: { servi
 
   for (const sessionId of toArchive) {
     if (!archivedSet.has(sessionId)) {
-      await client.app.log({
-        body: {
-          service: "opencode-archiver",
-          level: "info",
-          message: `[ARCHIVER] Missing archive for session: ${sessionId}`,
-        },
-      })
+      await reconcileArchive(client, sessionId)
     }
+  }
+}
+
+function getDbPath(): string {
+  return join(homedir(), ".local", "share", "opencode", "opencode.db")
+}
+
+function getSessionInfo(sessionId: string): { title: string | null; createdAt: number | null } {
+  const DB_PATH = getDbPath()
+
+  try {
+    const db = new Database(DB_PATH, { readonly: true })
+    const query = db.query("SELECT title, time_created FROM session WHERE id = ?")
+    const row = query.get(sessionId) as { title: string | null; time_created: number | null } | undefined
+    db.close()
+
+    if (row) {
+      return { title: row.title, createdAt: row.time_created }
+    }
+  } catch (error) {
+    console.error(`[ARCHIVER] Error getting session info for ${sessionId}:`, error)
+  }
+
+  return { title: null, createdAt: null }
+}
+
+function generateKeywords(sessionId: string): string[] {
+  return []
+}
+
+async function reconcileArchive(
+  client: { app: { log: (args: { body: { service: string; level: "info" | "debug" | "error" | "warn"; message: string } }) => unknown } },
+  sessionId: string,
+): Promise<void> {
+  await client.app.log({
+    body: {
+      service: "opencode-archiver",
+      level: "info",
+      message: `[ARCHIVER] Reconciling archive for session: ${sessionId}`,
+    },
+  })
+
+  const { title, createdAt } = getSessionInfo(sessionId)
+
+  if (!title || createdAt === null) {
+    await client.app.log({
+      body: {
+        service: "opencode-archiver",
+        level: "error",
+        message: `[ARCHIVER] Could not get session info for ${sessionId}`,
+      },
+    })
+    return
+  }
+
+  const date = new Date(createdAt)
+  const dateStr = date.toISOString().split("T")[0]
+  const filename = `${dateStr}-${sessionId}.md`
+  const filePath = join(ARCHIVE_DIR, filename)
+
+  const keywords = generateKeywords(sessionId)
+  const keywordsStr = keywords.join(", ")
+
+  const content = `keywords: ${keywordsStr}
+title: ${title}
+---
+Content of the session
+`
+
+  try {
+    await writeFile(filePath, content, "utf-8")
+    await client.app.log({
+      body: {
+        service: "opencode-archiver",
+        level: "info",
+        message: `[ARCHIVER] Created archive file: ${filename}`,
+      },
+    })
+  } catch (error) {
+    await client.app.log({
+      body: {
+        service: "opencode-archiver",
+        level: "error",
+        message: `[ARCHIVER] Error writing archive file for ${sessionId}: ${error}`,
+      },
+    })
   }
 }
 
