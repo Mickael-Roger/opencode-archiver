@@ -115,6 +115,76 @@ function generateKeywords(sessionId: string): string[] {
   return []
 }
 
+interface MessageInfo {
+  id: string
+  role: "user" | "assistant"
+  finish: string | null
+}
+
+interface MessagePart {
+  type: string
+  text?: string
+}
+
+function getMessagesForSession(sessionId: string): MessageInfo[] {
+  const DB_PATH = getDbPath()
+  const messages: MessageInfo[] = []
+
+  try {
+    const db = new Database(DB_PATH, { readonly: true })
+    const query = db.query("SELECT id, data FROM message WHERE session_id = ? ORDER BY time_created ASC")
+    const rows = query.all(sessionId) as { id: string; data: string }[]
+
+    for (const row of rows) {
+      try {
+        const data = JSON.parse(row.data) as { role: string; finish?: string }
+        if (data.role === "user" || (data.role === "assistant" && data.finish === "stop")) {
+          messages.push({
+            id: row.id,
+            role: data.role as "user" | "assistant",
+            finish: data.finish || null,
+          })
+        }
+      } catch {
+        // Skip invalid JSON
+      }
+    }
+
+    db.close()
+  } catch (error) {
+    console.error(`[ARCHIVER] Error getting messages for session ${sessionId}:`, error)
+  }
+
+  return messages
+}
+
+function getMessageContent(messageId: string): string {
+  const DB_PATH = getDbPath()
+  const textParts: string[] = []
+
+  try {
+    const db = new Database(DB_PATH, { readonly: true })
+    const query = db.query("SELECT data FROM part WHERE message_id = ? ORDER BY time_created ASC")
+    const rows = query.all(messageId) as { data: string }[]
+    db.close()
+
+    for (const row of rows) {
+      try {
+        const part = JSON.parse(row.data) as MessagePart
+        if (part.type === "text" && part.text) {
+          textParts.push(part.text)
+        }
+      } catch {
+        // Skip invalid JSON
+      }
+    }
+  } catch (error) {
+    console.error(`[ARCHIVER] Error getting content for message ${messageId}:`, error)
+  }
+
+  return textParts.join("\n")
+}
+
 async function reconcileArchive(
   client: { app: { log: (args: { body: { service: string; level: "info" | "debug" | "error" | "warn"; message: string } }) => unknown } },
   sessionId: string,
@@ -140,6 +210,17 @@ async function reconcileArchive(
     return
   }
 
+  const messages = getMessagesForSession(sessionId)
+  const conversationLines: string[] = []
+
+  for (const message of messages) {
+    const content = getMessageContent(message.id)
+    if (content) {
+      const role = message.role === "user" ? "User" : "Assistant"
+      conversationLines.push(`# ${role}\n---\n\n${content}\n`)
+    }
+  }
+
   const date = new Date(createdAt)
   const dateStr = date.toISOString().split("T")[0]
   const filename = `${dateStr}-${sessionId}.md`
@@ -151,7 +232,7 @@ async function reconcileArchive(
   const content = `keywords: ${keywordsStr}
 title: ${title}
 ---
-Content of the session
+${conversationLines.join("\n")}
 `
 
   try {
