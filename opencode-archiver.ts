@@ -4,6 +4,9 @@ import { join } from "node:path"
 import type { Plugin } from "@opencode-ai/plugin"
 
 const ARCHIVE_DIR = process.env.OPENCODE_ARCHIVER_DIRECTORY || join(homedir(), ".opencode-archives")
+const ARCHIVE_AGENTS = process.env.OPENCODE_ARCHIVER_AGENTS
+  ? process.env.OPENCODE_ARCHIVER_AGENTS.split(",").map((agent) => agent.trim())
+  : ["Chat"]
 
 async function ensureArchiveDir(): Promise<string> {
   await mkdir(ARCHIVE_DIR, { recursive: true })
