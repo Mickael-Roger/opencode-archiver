@@ -111,9 +111,6 @@ function getSessionInfo(sessionId: string): { title: string | null; createdAt: n
   return { title: null, createdAt: null }
 }
 
-function generateKeywords(sessionId: string): string[] {
-  return []
-}
 
 interface MessageInfo {
   id: string
@@ -226,11 +223,7 @@ async function reconcileArchive(
   const filename = `${dateStr}-${sessionId}.md`
   const filePath = join(ARCHIVE_DIR, filename)
 
-  const keywords = generateKeywords(sessionId)
-  const keywordsStr = keywords.join(", ")
-
-  const content = `keywords: ${keywordsStr}
-title: ${title}
+  const content = `title: ${title}
 ---
 ${conversationLines.join("\n")}
 `
