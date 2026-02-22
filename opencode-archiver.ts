@@ -22,7 +22,7 @@ async function listArchivedSessionIds(): Promise<string[]> {
 
     for (const file of files) {
       const match = file.match(pattern)
-      if (match) {
+      if (match && match[1]) {
         sessionIds.push(match[1])
       }
     }
